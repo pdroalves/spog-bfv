@@ -1,28 +1,27 @@
-/**
- * SPOG
- * Copyright (C) 2017-2019 SPOG Authors
- * 
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
-#ifndef FVContext_H
-#define FVContext_H
+// SPOG
+// Copyright (C) 2017-2021 SPOG Authors
+// 
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// 
+#ifndef BFVContext_H
+#define BFVContext_H
 
 #define ntl_safe_scaling(A, B) to_ZZ(NTL::round(to_RR(A) / to_RR(B)))
 
 #include <cuPoly/arithmetic/context.h>
 #include <cuPoly/cuda/sampler.h>
-#include <SPOG/arithmetic/ciphertext.h>
+#include <SPOG-BFV/arithmetic/ciphertext.h>
 
 #include <rapidjson/document.h>
 #include <rapidjson/writer.h>
@@ -30,96 +29,94 @@
 using namespace rapidjson;
 typedef Document json;
 
-/////////////////////
-// Params
-// 
-// This struct will store all non-key settings.
-// 
-// R = Z[x] / \phi_nphi(x)
-// 
-// q and t are the ciphertext and plaintext coefficient bases, respectively
-// 
+/**
+ * @brief       A pack of BFV's parameters that can be used to initialize BFVContext
+ */
 typedef struct{
     ZZ q;
     uint64_t t;
     int nphi;
-} Params;
+} BFVParams;
 
 /////////////////////
 // Keys            //
 /////////////////////
 
-// Public Key type
+/**
+ * \brief The secret key
+ */
+typedef struct{
+    poly_t s;
+} SecretKey;
+
+/**
+ * \brief The public key
+ */
 typedef struct{
     poly_t b;
     poly_t a;
 } PublicKey;
 
-// Secret Key type
-typedef struct{
-    poly_t s;
-} SecretKey;
-
-// evk type
+/**
+ * \brief Stores a evk
+ */
 typedef struct{
     poly_t *b = NULL;
     poly_t *a = NULL;
-} EvaluationKey;
+} EvaluationKey; 
 
-// A composite of all types of keys
+/**
+ * \brief A pack with all types of keys
+ */
 typedef struct{
-    PublicKey pk;
     SecretKey sk;
+    PublicKey pk;
     EvaluationKey evk;
 } Keys;
 
-__host__ void keys_init(Context *ctx, Keys *k);
-__host__ void keys_free(Context *ctx, Keys *k);
+__host__ void keys_init(Context *ctx, Keys *k); //!< Initialize a Keys struct
+__host__ void keys_free(Context *ctx, Keys *k); //!< Releases the memory of a Keys struct
+__host__ void keys_sk_free(Context *ctx, SecretKey *sk); //!< Releases the memory of a SecretKey struct
 
 /**
- * @brief      This is a specialization of Context focused on handling FV's related data 
+ * @brief      This is a specialization of Context focused on handling BFV's related data 
  */
-class FVContext : public Context{
+class BFVContext : public Context{
 
     private:
-        Params params;
+        BFVParams params;
 
-        std::vector<Context*> alt_b_ctxs; // Alternative contexts at base B
-        std::vector<Context*> alt_ctxs; // Alternative contexts at base Q
+        std::vector<Context*> alt_ctxs; //!< Alternative contexts at base Q
+        std::vector<Context*> alt_b_ctxs; //!< Alternative contexts at base B
         
     public: 
         // Using delta as a polynomial implies in a much faster and simpler
         // multiplication during encryption.
-        poly_t delta; // Encrypt (Pre-comp)
+        poly_t delta; //!< q/t used in encrypt
 
-        poly_t *cstar_Q; // Mul (Pre-comp): Store the product of c1 by c2 in base q
-        poly_t *cstar_B; // Mul (Pre-comp):Store the product of c1 by c2 in base b
-        poly_t *cmult; //
+        poly_t *cstar_Q; //!< Stores the product of c1 by c2 in base q
+        poly_t *cstar_B; //!< Stores the product of c1 by c2 in base b
+        poly_t *cmult; //!< Stores the scaled and rounded product of c1 by c2 in base q
     
-        poly_t *u; // Encryption
-        poly_t *e1, *e2; // Encryption
+        poly_t *u, *e1, *e2; //!< Sampled polynomial used in encryption
+
+        cipher_t *c1_B; //!< The representation in base B of the first operand in a hom. mul.
+        cipher_t *c2_B; //!< The representation in base B of the second operand in a hom. mul.
+
+        // BFV decrypt
+        poly_t *m_aux; //!< Temporary storage of |(c0 + c1*s)|_q 
+
+        Keys *keys;//!< The public keys used to encrypt and relinearize
+
+        poly_t *d = new poly_t[COPRIMES_BUCKET_SIZE]; //!< Temporary array used in relinearization
 
 
-        cipher_t *c1_B; // Mul (Pre-comp):Base B
-        cipher_t *c2_B; // Mul (Pre-comp):Base B
-
-
-        // FV decrypt
-        poly_t *m_aux;
-
-        PublicKey pk;
-        SecretKey sk;
-        EvaluationKey evk;
-
-        poly_t *d = new poly_t[COPRIMES_BUCKET_SIZE]; // Relin
-
-
-        FVContext( ZZ q,
+        /////////////////////////////////////////////
+        // BFV operations are done on a context //
+        /////////////////////////////////////////////
+        BFVContext( ZZ q,
             uint64_t t,
             int nphi){
-            /////////////////////////////////////////////
-            // Each FV object works on its own context //
-            /////////////////////////////////////////////
             ////////////////
             // Parameters //
             ////////////////
@@ -169,7 +166,7 @@ class FVContext : public Context{
 
         };
 
-        FVContext( Params p ) : FVContext(p.q, p.t, p.nphi){
+        BFVContext( BFVParams p ) : BFVContext(p.q, p.t, p.nphi){
 
         }
 
@@ -188,7 +185,7 @@ class FVContext : public Context{
         void load_keys(const json & k);
 
         /**
-         * @brief      Clear all the keys stored in the FV object
+         * @brief      Clear all the keys stored
          */
         void clear_keys();
 
@@ -209,7 +206,7 @@ class FVContext : public Context{
         }
 
        /**
-         * @brief      Synchronizes all related streams
+         * @brief      Synchronizes all cudaStreams
          * 
          * Calls cudaStreamSynchronize() for all related streams
          *
@@ -223,7 +220,7 @@ class FVContext : public Context{
         }
 
        /**
-         * @brief      Synchronizes all related streams
+         * @brief      Synchronizes only the alternative related cudaStreams
          * 
          * Calls cudaStreamSynchronize() for all related streams
          *
@@ -238,15 +235,15 @@ class FVContext : public Context{
         }
 
         /**
-        * @brief      Return a Params struct containing q, t, and nphi
+        * @brief      Return a BFVParams struct containing q, t, and nphi
         *
         * @return     The parameters.
         */
-        Params get_params(){
-            return (Params){params.q, params.t, params.nphi};
+        BFVParams get_params(){
+            return (BFVParams){params.q, params.t, params.nphi};
         }
 
-        ~FVContext(){
+        ~BFVContext(){
             poly_free(this, &delta);
 
             for (int i = 0; i < 3; i++){
@@ -276,6 +273,6 @@ class FVContext : public Context{
 
 };
 
-__host__ SecretKey* fv_new_sk(FVContext *ctx);
+__host__ SecretKey* bfv_new_sk(BFVContext *ctx);
 
 #endif

@@ -1,29 +1,27 @@
-/**
- * SPOG
- * Copyright (C) 2017-2019 SPOG Authors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// SPOG
+// Copyright (C) 2017-2021 SPOG Authors
+// 
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <stdlib.h>
 #include <gtest/gtest.h>
 #include <cuPoly/settings.h>
 #include <cuPoly/arithmetic/polynomial.h>
 #include <cuPoly/tool/version.h>
-#include <SPOG/tool/version.h>
-#include <SPOG/fvcontext.h>
-#include <SPOG/fv.h>
+#include <SPOG-BFV/tool/version.h>
+#include <SPOG-BFV/bfvcontext.h>
+#include <SPOG-BFV/bfv.h>
 #include <NTL/ZZ.h>
 #include <NTL/ZZ_p.h>
 #include <NTL/ZZ_pEX.h>
@@ -37,16 +35,16 @@ typedef struct{
 const int LOGLEVEL = QUIET;
 const int NTESTS = 100;
 
-class TestFV : public ::testing::TestWithParam<TestParams> {
+class TestBFV : public ::testing::TestWithParam<TestParams> {
 	protected:
-    FVContext* cipher;
+    BFVContext* cipher;
 	ZZ_pX NTL_Phi;
 	Keys* keys;
 	SecretKey *sk;   
 
 	public:
 	__host__ void SetUp(){
-	    Params p;
+	    BFVParams p;
 		srand(0);
 		NTL::SetSeed(to_ZZ(0));
 		Logger::getInstance()->set_mode(LOGLEVEL);
@@ -68,11 +66,11 @@ class TestFV : public ::testing::TestWithParam<TestParams> {
 		ZZ_pE::init(NTL_Phi);
 
 		// FV setup
-        cipher = new FVContext(p);
+        cipher = new BFVContext(p);
         Sampler::init(cipher);
 
-		sk = fv_new_sk(cipher);
-        keys = fv_keygen(cipher, sk);
+		sk = bfv_new_sk(cipher);
+        keys = bfv_keygen(cipher, sk);
 
 		cudaStreamSynchronize(cipher->get_stream());
 		cudaCheckError();
@@ -96,7 +94,7 @@ class TestFV : public ::testing::TestWithParam<TestParams> {
 };
 
 
-TEST_P(TestFV, EncryptDecrypt)
+TEST_P(TestBFV, EncryptDecrypt)
 {
 	for(int N = 0; N < NTESTS; N++){
 		/////////////
@@ -114,8 +112,8 @@ TEST_P(TestFV, EncryptDecrypt)
 		/////////////
 		// Encrypt //
 		/////////////
-		cipher_t* ct = fv_encrypt(cipher, &m);
-		poly_t *m_decrypted = fv_decrypt(cipher, ct, sk);
+		cipher_t* ct = bfv_encrypt(cipher, &m);
+		poly_t *m_decrypted = bfv_decrypt(cipher, ct, sk);
 
 		///////////
 		// Check //
@@ -139,7 +137,7 @@ TEST_P(TestFV, EncryptDecrypt)
 }
 
 
-TEST_P(TestFV, Add)
+TEST_P(TestBFV, Add)
 {        
 	for(int N = 0; N < NTESTS; N++){
 		/////////////
@@ -160,18 +158,18 @@ TEST_P(TestFV, Add)
 		/////////////
 		// Encrypt //
 		/////////////
-		cipher_t *ct1 = fv_encrypt(cipher, &m1);
-		cipher_t *ct2 = fv_encrypt(cipher, &m2);
+		cipher_t *ct1 = bfv_encrypt(cipher, &m1);
+		cipher_t *ct2 = bfv_encrypt(cipher, &m2);
 
 		/////////
 		// Add //
 		/////////
-		cipher_t *ct3 = fv_add(cipher, ct1, ct2);
+		cipher_t *ct3 = bfv_add(cipher, ct1, ct2);
 
 		//////////////
 		// Decrypt  //
 		//////////////
-		poly_t *m3 = fv_decrypt(cipher, ct3, sk);
+		poly_t *m3 = bfv_decrypt(cipher, ct3, sk);
 
 		///////////
 		// Check //
@@ -193,7 +191,7 @@ TEST_P(TestFV, Add)
 }
 
 
-TEST_P(TestFV, Mul)
+TEST_P(TestBFV, Mul)
 {
 	ZZ_p::init(to_ZZ(cipher->get_params().t));
 	for(int N = 0; N < NTESTS; N++){
@@ -225,8 +223,8 @@ TEST_P(TestFV, Mul)
 		/////////////
 		// Encrypt //
 		/////////////
-		cipher_t *ct1 = fv_encrypt(cipher, &m1);
-		cipher_t *ct2 = fv_encrypt(cipher, &m2);
+		cipher_t *ct1 = bfv_encrypt(cipher, &m1);
+		cipher_t *ct2 = bfv_encrypt(cipher, &m2);
 
 		cudaDeviceSynchronize();
 		cudaCheckError();
@@ -234,13 +232,13 @@ TEST_P(TestFV, Mul)
 		/////////
 		// Mul //
 		/////////
-		cipher_t *ct3 = fv_mul(cipher, ct1, ct2);
+		cipher_t *ct3 = bfv_mul(cipher, ct1, ct2);
 		ntl_m3 = ntl_m1 * ntl_m2 % NTL_Phi;
 
 		//////////////
 		// Decrypt  //
 		//////////////
-		poly_t *m3 = fv_decrypt(cipher, ct3, sk);
+		poly_t *m3 = bfv_decrypt(cipher, ct3, sk);
 
 		///////////
 		// Check //
@@ -268,7 +266,7 @@ TEST_P(TestFV, Mul)
 	ZZ_p::init(CUDAEngine::RNSProduct);
 }
 
-TEST_P(TestFV, PlainMul)
+TEST_P(TestBFV, PlainMul)
 {
 	ZZ_p::init(to_ZZ(cipher->get_params().t));
 	for(int N = 0; N < NTESTS; N++){
@@ -300,18 +298,18 @@ TEST_P(TestFV, PlainMul)
 		/////////////
 		// Encrypt //
 		/////////////
-		cipher_t *ct1 = fv_encrypt(cipher, &m1);
+		cipher_t *ct1 = bfv_encrypt(cipher, &m1);
 
 		/////////
 		// Mul //
 		/////////
-        cipher_t *ct3 = fv_plainmul(cipher, ct1, &m2);
+        cipher_t *ct3 = bfv_plainmul(cipher, ct1, &m2);
 		ntl_m3 = ntl_m1 * ntl_m2 % NTL_Phi;
 
 		//////////////
 		// Decrypt  //
 		//////////////
-		poly_t *m3 = fv_decrypt(cipher, ct3, sk);
+		poly_t *m3 = bfv_decrypt(cipher, ct3, sk);
 
 		///////////
 		// Check //
@@ -349,7 +347,7 @@ TEST_P(TestFV, PlainMul)
 // 		poly_mod_by_ZZ(cipher, &m, &m, to_ZZ(cipher->get_params().t));
 // 		// std::cout << poly_to_string(&m) << std::endl;
 
-// 		cipher_t* ct = fv_encrypt(cipher, m);
+// 		cipher_t* ct = bfv_encrypt(cipher, m);
 
 // 		// Clear keys
 // 		cipher->clear_keys();
@@ -358,8 +356,8 @@ TEST_P(TestFV, PlainMul)
 // 		cipher->load_keys(jkeys);
 
 // 		// Verifies if we are still able to decrypt
-// 		// std::cout << poly_to_string(fv_decrypt(cipher, *ct, sk)) << std::endl;
-// 		ASSERT_TRUE(poly_are_equal(&m, fv_decrypt(cipher, *ct, sk)));
+// 		// std::cout << poly_to_string(bfv_decrypt(cipher, *ct, sk)) << std::endl;
+// 		ASSERT_TRUE(poly_are_equal(&m, bfv_decrypt(cipher, *ct, sk)));
 // 	}
 // }
 
@@ -384,8 +382,8 @@ std::string printParamName(::testing::TestParamInfo<TestParams> p){
 	"_t" + std::to_string(params.t);
 }
 
-INSTANTIATE_TEST_CASE_P(SPOGInstantiation,
-	TestFV,
+INSTANTIATE_TEST_CASE_P(SPOGBFVInstantiation,
+	TestBFV,
 	params,
 	printParamName
 );
@@ -396,7 +394,7 @@ int main(int argc, char **argv) {
   ////////// Google tests //
   //////////////////////////
   std::cout << "Testing cuPoly " << GET_CUPOLY_VERSION() << std::endl;
-  std::cout << "Testing SPOG " << GET_SPOG_VERSION() << std::endl;
+  std::cout << "Testing SPOG " << GET_SPOGBFV_VERSION() << std::endl;
   std::cout << "Running " << NTESTS << std::endl << std::endl;
   ::testing::InitGoogleTest(&argc, argv);
 

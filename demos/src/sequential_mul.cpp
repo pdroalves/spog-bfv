@@ -1,25 +1,20 @@
-/**
- * SPOG
- * Copyright (C) 2017-2019 SPOG Authors
- * 
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// SPOG
+// Copyright (C) 2017-2021 SPOG Authors
+// 
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <cuPoly/settings.h>
-#include <cuPoly/arithmetic/polynomial.h>
-#include <SPOG/fv.h>
-#include <SPOG/fvcontext.h>
+#include <SPOG-BFV/bfv.h>
 #include <stdlib.h>
 #include <NTL/ZZ.h>
 #include <cuda_profiler_api.h>
@@ -35,14 +30,14 @@
 int main() {
 	cudaProfilerStop();
 
-	FVContext *cipher;
+	BFVContext *cipher;
 	ZZ q;
 
 	srand(0);
 	NTL::SetSeed(to_ZZ(0));
 
 	// Params
-    Params p;
+    BFVParams p;
     p.nphi = 4096;
     p.t = 256;
 	int k = 4;
@@ -55,10 +50,10 @@ int main() {
     p.q = CUDAEngine::RNSProduct;
         
 	// FV setup
-	cipher = new FVContext(p);
+	cipher = new BFVContext(p);
 	Sampler::init(cipher);
-	SecretKey *sk = fv_new_sk(cipher);
-	fv_keygen(cipher, sk);
+	SecretKey *sk = bfv_new_sk(cipher);
+	bfv_keygen(cipher, sk);
 
 	/////////////
 	// Message //
@@ -71,7 +66,7 @@ int main() {
 	/////////////
 	Logger::getInstance()->log_info("==========================");
 	Logger::getInstance()->log_info("Will encrypt");
-	cipher_t* ct = fv_encrypt(cipher, &m);
+	cipher_t* ct = bfv_encrypt(cipher, &m);
 
 	//////////
 	// Mul //
@@ -98,13 +93,13 @@ int main() {
 		// Mul //
 		/////////
 		std::cout << "Iteration " << it << ": ";
-		ctR = fv_mul(cipher, ct, ctR);
+		ctR = bfv_mul(cipher, ct, ctR);
 		poly_mul(cipher, &mR, &m, &mR);
 
 		//////////////
 		// Validate //
 		/////////////
-		m_decrypted = fv_decrypt(cipher, ctR, sk);
+		m_decrypted = bfv_decrypt(cipher, ctR, sk);
 		if(poly_are_equal(cipher, m_decrypted, &mR))
 			std::cout << "We are good!"  << std::endl;
 		else

@@ -1,24 +1,22 @@
-/**
- * SPOG
- * Copyright (C) 2017-2019 SPOG Authors
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// SPOG
+// Copyright (C) 2017-2021 SPOG Authors
+// 
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <SPOG/fv.h>
+#include <SPOG-BFV/bfv.h>
 
-__host__ Keys* fv_keygen(FVContext *ctx, SecretKey *sk){
+__host__ Keys* bfv_keygen(BFVContext *ctx, SecretKey *sk){
 	Keys *keys;
 	assert(sk->s.init);
 
@@ -86,22 +84,21 @@ __host__ Keys* fv_keygen(FVContext *ctx, SecretKey *sk){
 	////////////
 	// Export //
 	////////////
-	ctx->pk = keys->pk;
-	ctx->evk = keys->evk;
+	ctx->keys = keys;
 	return keys;
 }
 
-__host__ cipher_t* fv_encrypt(FVContext *ctx, poly_t *m){
+__host__ cipher_t* bfv_encrypt(BFVContext *ctx, poly_t *m){
     	/////////////////////
 	// Allocate memory //
 	/////////////////////
 	cipher_t *ct = new cipher_t;
 	cipher_init(ctx, ct);
         
-    return fv_encrypt(ctx, ct, m);
+    return bfv_encrypt(ctx, ct, m);
 }
 
-__host__ cipher_t* fv_encrypt(FVContext *ctx, cipher_t *ct, poly_t *m){
+__host__ cipher_t* bfv_encrypt(BFVContext *ctx, cipher_t *ct, poly_t *m){
 	assert(CUDAEngine::is_init);
 	assert(m->init);
 
@@ -117,12 +114,12 @@ __host__ cipher_t* fv_encrypt(FVContext *ctx, cipher_t *ct, poly_t *m){
 
 	// c0 = delta*m + u*p0 + e0
 	poly_mul(	 ctx, &ct->c[0], m, &ctx->delta);
-	poly_mul_add(ctx, &ct->c[0], ctx->u, &ctx->pk.b, &ct->c[0]);
+	poly_mul_add(ctx, &ct->c[0], ctx->u, &ctx->keys->pk.b, &ct->c[0]);
 	poly_add(    ctx, &ct->c[0], &ct->c[0], ctx->e1);
 
 	// c1 = u*p1 + e1
-	Sampler::sample(ctx, ctx->e2, DISCRETE_GAUSSIAN);
-	poly_mul_add(ctx, &ct->c[1], ctx->u, &ctx->pk.a, ctx->e2);
+	Sampler::sample(ctx, ctx->e1, DISCRETE_GAUSSIAN);
+	poly_mul_add(ctx, &ct->c[1], ctx->u, &ctx->keys->pk.a, ctx->e1);
 
 	//
 	poly_clear(ctx, ctx->u);
@@ -130,12 +127,12 @@ __host__ cipher_t* fv_encrypt(FVContext *ctx, cipher_t *ct, poly_t *m){
 	return ct;
 }
 
-__host__ poly_t* fv_decrypt(FVContext *ctx, cipher_t *c, SecretKey *sk){
+__host__ poly_t* bfv_decrypt(BFVContext *ctx, cipher_t *c, SecretKey *sk){
 	poly_t *m = new poly_t;
-    return fv_decrypt(ctx, m, c, sk);
+    return bfv_decrypt(ctx, m, c, sk);
 }
 
-__host__ poly_t* fv_decrypt(FVContext *ctx, poly_t *m, cipher_t *c, SecretKey *sk){
+__host__ poly_t* bfv_decrypt(BFVContext *ctx, poly_t *m, cipher_t *c, SecretKey *sk){
 	assert(CUDAEngine::is_init);
 
 	//////////////////////////////////////////
@@ -150,16 +147,16 @@ __host__ poly_t* fv_decrypt(FVContext *ctx, poly_t *m, cipher_t *c, SecretKey *s
 	return m;
 }
 
-cipher_t* fv_add(FVContext *ctx, cipher_t *c1, cipher_t *c2){
+cipher_t* bfv_add(BFVContext *ctx, cipher_t *c1, cipher_t *c2){
 	assert(CUDAEngine::is_init);
 	cipher_t *c3 = new cipher_t;
 
-	fv_add(ctx, c3, c1, c2);
+	bfv_add(ctx, c3, c1, c2);
 
 	return c3;
 }
 
-__host__  void fv_add(FVContext *ctx, cipher_t *c3, cipher_t *c1, cipher_t *c2){
+__host__  void bfv_add(BFVContext *ctx, cipher_t *c3, cipher_t *c1, cipher_t *c2){
 	assert(CUDAEngine::is_init);
 
 	poly_double_add(
@@ -174,16 +171,16 @@ __host__  void fv_add(FVContext *ctx, cipher_t *c3, cipher_t *c1, cipher_t *c2){
 	return;
 }
 
-__host__ cipher_t* fv_plainmul(FVContext *ctx, cipher_t *ct, poly_t *pt)
+__host__ cipher_t* bfv_plainmul(BFVContext *ctx, cipher_t *ct, poly_t *pt)
 {
     assert(CUDAEngine::is_init);
     cipher_t *c3 = new cipher_t;
     
-    fv_plainmul(ctx, c3, ct, pt);
+    bfv_plainmul(ctx, c3, ct, pt);
     return c3;
 }
 
-__host__ void fv_plainmul(FVContext *ctx, cipher_t *result, cipher_t *ct, poly_t *pt)
+__host__ void bfv_plainmul(BFVContext *ctx, cipher_t *result, cipher_t *ct, poly_t *pt)
 {
     assert(CUDAEngine::is_init);
     
@@ -193,18 +190,18 @@ __host__ void fv_plainmul(FVContext *ctx, cipher_t *result, cipher_t *ct, poly_t
 
 //d = c + a*b
 //void poly_mul_add(poly_t *d, poly_t *a, poly_t *b, poly_t *c)
-__host__ cipher_t* fv_plainmuladd(FVContext *ctx, cipher_t *ctm, cipher_t *cta, poly_t *pt)
+__host__ cipher_t* bfv_plainmuladd(BFVContext *ctx, cipher_t *ctm, cipher_t *cta, poly_t *pt)
 {
     assert(CUDAEngine::is_init);
     
     cipher_t *result = new cipher_t;
     
-    fv_plainmuladd(ctx, result, ctm, cta, pt);
+    bfv_plainmuladd(ctx, result, ctm, cta, pt);
     
     return result;
 }
 
-__host__ void fv_plainmuladd(FVContext *ctx, cipher_t *result, cipher_t *ctm, cipher_t *cta, poly_t *pt)
+__host__ void bfv_plainmuladd(BFVContext *ctx, cipher_t *result, cipher_t *ctm, cipher_t *cta, poly_t *pt)
 {
     assert(CUDAEngine::is_init);
     
@@ -212,18 +209,18 @@ __host__ void fv_plainmuladd(FVContext *ctx, cipher_t *result, cipher_t *ctm, ci
     poly_mul_add(ctx, &result->c[1], &ctm->c[1], pt, &cta->c[1]);
 }
 
-__host__ cipher_t* fv_mul(FVContext *ctx, cipher_t *c1, cipher_t *c2){
+__host__ cipher_t* bfv_mul(BFVContext *ctx, cipher_t *c1, cipher_t *c2){
 	assert(CUDAEngine::is_init);
 
 	cipher_t *c3 = new cipher_t;
 
-	fv_mul(ctx, c3, c1, c2);
+	bfv_mul(ctx, c3, c1, c2);
 
 	return c3;
 }
 
 
-__host__ void fv_mul(FVContext *ctx, cipher_t *c3, cipher_t *c1, cipher_t *c2){
+__host__ void bfv_mul(BFVContext *ctx, cipher_t *c3, cipher_t *c1, cipher_t *c2){
 	////////////////////////////////////////////
 	// Execute the homomorphic multiplication //
 	////////////////////////////////////////////
@@ -235,9 +232,9 @@ __host__ void fv_mul(FVContext *ctx, cipher_t *c3, cipher_t *c1, cipher_t *c2){
 	// Basis extension to Q*B //
 	////////////////////////////
 	poly_basis_extension_Q_to_B(ctx, &ctx->c1_B->c[0], &c1->c[0]);
-	poly_basis_extension_Q_to_B(ctx->get_alt_ctx(0), &ctx->c2_B->c[0], &c2->c[0]);
-	poly_basis_extension_Q_to_B(ctx->get_alt_ctx(1), &ctx->c1_B->c[1], &c1->c[1]);
-	poly_basis_extension_Q_to_B(ctx->get_alt_ctx(2), &ctx->c2_B->c[1], &c2->c[1]);
+	poly_basis_extension_Q_to_B(ctx->get_alt_ctx(1), &ctx->c2_B->c[0], &c2->c[0]);
+	poly_basis_extension_Q_to_B(ctx->get_alt_ctx(2), &ctx->c1_B->c[1], &c1->c[1]);
+	poly_basis_extension_Q_to_B(ctx->get_alt_ctx(3), &ctx->c2_B->c[1], &c2->c[1]);
 
 	////////////////////////
 	// Compute DR2(c1,c2) //
@@ -285,18 +282,18 @@ __host__ void fv_mul(FVContext *ctx, cipher_t *c3, cipher_t *c1, cipher_t *c2){
 	/////////////////////
 	// Relinearization //
 	/////////////////////
-	fv_relin(
+	bfv_relin(
 		ctx,
 		c3,
 		ctx->cmult,
-		&ctx->evk);
+		&ctx->keys->evk);
 
 	return;
 }
 
 
-__host__ void fv_relin(
-	FVContext *ctx,
+__host__ void bfv_relin(
+	BFVContext *ctx,
 	cipher_t *c,
 	poly_t *cmult,
 	EvaluationKey *evk){

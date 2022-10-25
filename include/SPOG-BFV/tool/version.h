@@ -14,12 +14,13 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 // 
-#include <SPOG-BFV/tool/version.h>
+#ifndef SPOGVERSION_H
+#define SPOGVERSION_H
 
-std::string GET_SPOGBFV_VERSION() {     
-    std::ostringstream oss; 
-    oss << SPOGBFV_VERSION_MAJOR << "." << SPOGBFV_VERSION_MINOR << "." << SPOGBFV_VERSION_PATCH; 
-    if(SPOGBFV_VERSION_TWEAK != 0)
-	    oss << " - " << SPOGBFV_VERSION_TWEAK;
-    return oss.str();
-}
+#include <sstream>
+#include <string>
+#include <SPOG-BFV/SPOGBFVConfig.h>
+
+std::string GET_SPOGBFV_VERSION();
+
+#endif

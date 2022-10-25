@@ -1,11 +1,11 @@
-PROJECT (SPOG LANGUAGES CXX)
+PROJECT (SPOG-BFV LANGUAGES CXX)
 CMAKE_MINIMUM_REQUIRED(VERSION 3.11.0)
 
-SET(LIB_NAME "SPOG")
+SET(LIB_NAME "SPOG-BFV")
 SET(PROJECT_VERSION_MAJOR "0")
-SET(PROJECT_VERSION_MINOR "3")
-SET(PROJECT_VERSION_PATCH "3")
-SET(PROJECT_VERSION_TWEAK "0")
+SET(PROJECT_VERSION_MINOR "4")
+SET(PROJECT_VERSION_PATCH "0")
+SET(PROJECT_VERSION_TWEAK "3")
 SET(PROJECT_VERSION "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
 SET(VERSION ${PROJECT_VERSION})
 
@@ -20,14 +20,12 @@ SET(CMAKE_CXX_FLAGS_RELEASE "-O3")
 # configure a header file to pass some of the CMake SETtings
 # to the source code
 configure_file (
-  "${PROJECT_SOURCE_DIR}/SPOGConfig.h.in"
-  "${PROJECT_SOURCE_DIR}/include/SPOG/SPOGConfig.h"
+  "${PROJECT_SOURCE_DIR}/SPOGBFVConfig.h.in"
+  "${PROJECT_SOURCE_DIR}/include/SPOG-BFV/SPOGBFVConfig.h"
   )
 
 SET(CMAKE_CXX_STANDARD 11)
 SET(CMAKE_CXX_STANDARD_REQUIRED ON)
-
-SET(CMAKE_CXX_STANDARD 11)
 SET(GCC_CUDA_VERSION "gcc" CACHE STRING "GCC compiler to be used with cuda")
 SET(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -37,7 +35,7 @@ ENABLE_LANGUAGE(CUDA)
 FIND_PACKAGE(CUDA REQUIRED)
 FIND_PACKAGE(NTL 11.0 REQUIRED)
 FIND_PACKAGE(GMP 6.0)
-FIND_PACKAGE(cuPoly 0.2.3 REQUIRED)
+FIND_PACKAGE(cuPoly 0.3.1 REQUIRED)
 FIND_PACKAGE(OpenMP)
 FIND_PACKAGE(cxxopts REQUIRED)
 FIND_PACKAGE(Rapidjson REQUIRED)
@@ -53,6 +51,9 @@ endif()
 
 SET(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+CUDA_SELECT_NVCC_ARCH_FLAGS(ARCH_FLAGS Auto)
+LIST(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
+LIST(APPEND CUDA_NVCC_FLAGS -Wno-deprecated-gpu-targets)
 LIST(APPEND CUDA_NVCC_FLAGS --default-stream per-thread)
 LIST(APPEND CUDA_NVCC_FLAGS --relocatable-device-code=true)
 LIST(APPEND CUDA_NVCC_FLAGS --use_fast_math)
@@ -69,11 +70,11 @@ SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 
 SET ( 
     libspogheaders 
-    include/SPOG/fv.h
-    include/SPOG/fvcontext.h
-    include/SPOG/SPOGConfig.h
-    include/SPOG/arithmetic/ciphertext.h
-    include/SPOG/tool/version.h
+    include/SPOG-BFV/bfv.h
+    include/SPOG-BFV/bfvcontext.h
+    include/SPOG-BFV/SPOGBFVConfig.h
+    include/SPOG-BFV/arithmetic/ciphertext.h
+    include/SPOG-BFV/tool/version.h
 )
 
 INCLUDE_DIRECTORIES(
@@ -85,16 +86,16 @@ INCLUDE_DIRECTORIES(
 
 SET ( 
     libsrc 
-    src/fv.cpp
-    src/fvcontext.cpp
+    src/bfv.cpp
+    src/bfvcontext.cpp
     src/arithmetic/ciphertext.cpp
     src/tool/version.cpp
 )
 
-CUDA_ADD_LIBRARY(spog STATIC ${libsrc})
+CUDA_ADD_LIBRARY(spogbfv STATIC ${libsrc})
 
 TARGET_LINK_LIBRARIES(
-    spog
+    spogbfv
     -lcupolybfv
     -lntl 
     -lgmp 
@@ -122,18 +123,18 @@ INCLUDE(cmake/doxygen.cmake)
 # Install
 # 
 
-INSTALL(TARGETS spog
+INSTALL(TARGETS spogbfv
         RUNTIME DESTINATION bin
         LIBRARY DESTINATION lib
         ARCHIVE DESTINATION lib)
 
-INSTALL(FILES include/SPOG/tool/version.h
-    DESTINATION include/SPOG/tool
+INSTALL(FILES include/SPOG-BFV/tool/version.h
+    DESTINATION include/SPOG-BFV/tool
     )
 
-INSTALL(FILES include/SPOG/fv.h include/SPOG/fvcontext.h include/SPOG/SPOGConfig.h
-    DESTINATION include/SPOG
+INSTALL(FILES include/SPOG-BFV/bfv.h include/SPOG-BFV/bfvcontext.h include/SPOG-BFV/SPOGBFVConfig.h
+    DESTINATION include/SPOG-BFV
     )
 
-INSTALL(FILES include/SPOG/arithmetic/ciphertext.h
-    DESTINATION include/SPOG/arithmetic)
+INSTALL(FILES include/SPOG-BFV/arithmetic/ciphertext.h
+    DESTINATION include/SPOG-BFV/arithmetic)

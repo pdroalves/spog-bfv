@@ -37,6 +37,12 @@ FIND_LIBRARY(NTL_LIBRARY
   /opt
 )
 
+set( NTL_VERSION_H "${NTL_INCLUDE_DIR}/version.h" )
+file( READ "${NTL_VERSION_H}" NTL_VERSION_H_CONTENTS )
+string( REGEX MATCH "[0-9]+(\\.[0-9]+)+" NTL_VERSION "${NTL_VERSION_H_CONTENTS}" )
+
+message( STATUS "NTL found: " ${NTL_LIBRARY} " ${NTL_VERSION}" )
+
 
 # handle the QUIETLY and REQUIRED arguments and set NTL_FOUND to TRUE if
 # all listed variables are TRUE

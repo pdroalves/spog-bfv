@@ -1,32 +1,22 @@
-/**
- * SPOG
- * Copyright (C) 2017-2019 SPOG Authors
- * 
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, either version 3 of the License, or
- * (at your option) any later version.
- * 
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- * 
- * You should have received a copy of the GNU General Public License
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.
- */
+// SPOG
+// Copyright (C) 2017-2021 SPOG Authors
+// 
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <cuPoly/settings.h>
-#include <cuPoly/arithmetic/polynomial.h>
-#include <SPOG/fv.h>
+#include <SPOG-BFV/bfv.h>
 #include <stdlib.h>
 #include <NTL/ZZ.h>
-#include <cuda_profiler_api.h>
-
-NTL_CLIENT
-
-#include <sstream>
-#include <string>
 
 std::string zToString(const ZZ &z) {
     std::stringstream buffer;
@@ -51,16 +41,13 @@ std::string stringifyJson(json d){
 	m1 * m2 + m3; and verify the result.
  */
 int main() {
-	cudaProfilerStop();
-
-	FVContext *cipher;
-	ZZ q;
+	BFVContext *cipher;
 
 	srand(0);
 	NTL::SetSeed(to_ZZ(0));
 
 	// Params
-    Params p;
+    BFVParams p;
     p.nphi = 4096;
     p.t = 256;
 	int k = 3;
@@ -79,11 +66,11 @@ int main() {
 	Logger::getInstance()->log_info( ("q: " + zToString(p.q) + " (" + std::to_string(NTL::NumBits(p.q)) + " bits) ").c_str());
 	Logger::getInstance()->log_info("==========================");
 
-	// FV setup
-	cipher = new FVContext(p);
+	// BFV setup
+	cipher = new BFVContext(p);
 	Sampler::init(cipher);
-	SecretKey *sk = fv_new_sk(cipher);
-	fv_keygen(cipher, sk);
+	SecretKey *sk = bfv_new_sk(cipher);
+	bfv_keygen(cipher, sk);
 	Logger::getInstance()->log_debug(("Keys:" + stringifyJson(cipher->export_keys())).c_str());
 
 	/////////////
@@ -123,11 +110,11 @@ int main() {
 	/////////////
 	Logger::getInstance()->log_info("==========================");
 	Logger::getInstance()->log_info("Will encrypt");
-	cipher_t* ct1 = fv_encrypt(cipher, &m1);
+	cipher_t* ct1 = bfv_encrypt(cipher, &m1);
 	Logger::getInstance()->log_debug( ("ct1: \n" + cipher_to_string(cipher, ct1)).c_str());
-	cipher_t* ct2 = fv_encrypt(cipher, &m2);
+	cipher_t* ct2 = bfv_encrypt(cipher, &m2);
 	Logger::getInstance()->log_debug( ("ct2: \n" + cipher_to_string(cipher, ct2)).c_str());
-	cipher_t* ct3 = fv_encrypt(cipher, &m3);
+	cipher_t* ct3 = bfv_encrypt(cipher, &m3);
 	
 	//////////
 	// Mul //
@@ -136,7 +123,7 @@ int main() {
 	Logger::getInstance()->log_info("Will mul: m1 * m2");
 	
 	// Encrypted mul
-	cipher_t *ctR1 = fv_mul(cipher, ct1, ct2);
+	cipher_t *ctR1 = bfv_mul(cipher, ct1, ct2);
 
 
 	// Plaintext mul
@@ -153,7 +140,7 @@ int main() {
 	Logger::getInstance()->log_info("Will add: m1 * m2 + m3");
 	
 	// Encrypted add
-	cipher_t* ctR2 = fv_add(cipher, ctR1, ct3);
+	cipher_t* ctR2 = bfv_add(cipher, ctR1, ct3);
 	
 	// Plaintext add
 	poly_t mR2;
@@ -167,7 +154,7 @@ int main() {
 	/////////////
 	Logger::getInstance()->log_info("==========================");
 	Logger::getInstance()->log_info("Will decrypt");
-	poly_t *m_decrypted = fv_decrypt(cipher, ctR2, sk);
+	poly_t *m_decrypted = bfv_decrypt(cipher, ctR2, sk);
 
 
 	//////////////

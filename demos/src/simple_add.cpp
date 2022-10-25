@@ -15,34 +15,23 @@
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 #include <SPOG-BFV/bfv.h>
-#include <NTL/ZZ.h>
 
-/**
-	encrypt_decrypt:
-
-	The intention of this program is to demonstrate the steps required for a
-	simple workload of generating a message, encrypt, and decrypt.
- */
 int main() {
 	BFVContext *cipher;
-	ZZ q;
-
-	srand(0);
-	NTL::SetSeed(to_ZZ(0));
 
 	// Params
     BFVParams p;
-    p.nphi = 8192;
+    p.nphi = 4096;
     p.t = 256;
-	int k = 3;
+	int k = 1;
 
 	// Set logger
 	Logger::getInstance()->set_mode(INFO);
 
 	// Init
 	CUDAEngine::init(k, k + 1, p.nphi, p.t);// Init CUDA
-    p.q = CUDAEngine::RNSProduct;
-        
+	p.q = CUDAEngine::RNSProduct;
+
 	// BFV setup
 	cipher = new BFVContext(p);
 	Sampler::init(cipher);
@@ -52,46 +41,43 @@ int main() {
 	/////////////
 	// Message //
 	/////////////
-	poly_t m;
-
-	poly_set_coeff(cipher, &m, 0, to_ZZ(68));	
-	poly_set_coeff(cipher, &m, 1, to_ZZ(102));
-	poly_set_coeff(cipher, &m, 2, to_ZZ(88));
-	poly_set_coeff(cipher, &m, 3, to_ZZ(113));
-	poly_set_coeff(cipher, &m, 4, to_ZZ(74));
-	poly_set_coeff(cipher, &m, 5, to_ZZ(101));
-	poly_set_coeff(cipher, &m, 6, to_ZZ(22));
-	poly_set_coeff(cipher, &m, 7, to_ZZ(127));
+	poly_t m1, m2;
+    Sampler::sample(cipher, &m1, UNIFORM);
+    Sampler::sample(cipher, &m2, UNIFORM);
 
 	/////////////
 	// Encrypt //
 	/////////////
+	///
 	Logger::getInstance()->log_info("==========================");
 	Logger::getInstance()->log_info("Will encrypt");
-	cipher_t* ct = bfv_encrypt(cipher, &m);
+	cipher_t* ct1 = bfv_encrypt(cipher, &m1);
+	cipher_t* ct2 = bfv_encrypt(cipher, &m2);
+	cipher_t* ct3 = new cipher_t;
+	cipher_init(cipher, ct3);
 
-	/////////////
-	// Decrypt //
-	/////////////
-	poly_t *m_decrypted = bfv_decrypt(cipher, ct, sk);
-	Logger::getInstance()->log_info(( "m: " + poly_to_string(cipher, &m)).c_str());
-
-	//////////////
-	// Validate //
-	/////////////
-	Logger::getInstance()->log_info(( "m_expected: " + poly_to_string(cipher, &m)).c_str());
-	Logger::getInstance()->log_info(( "m_decrypted: " + poly_to_string(cipher, m_decrypted)).c_str());
-	Logger::getInstance()->log_info(( poly_are_equal(cipher, m_decrypted, &m) == true? "Success!" : "Failure =("));
-
+	//////////
+	// Add //
+	////////
+	Logger::getInstance()->log_info("Will Add");
+	bfv_add(cipher, ct3, ct1, ct2);
+	Logger::getInstance()->log_info("==========================");
+	
 	/////////////	
 	// Release //
 	/////////////	
-	poly_free(cipher, &m);
-	poly_free(cipher, m_decrypted);
-	
-	cipher_free(cipher, ct);
-	delete cipher;
+	poly_free(cipher, &m1);
+	poly_free(cipher, &m2);
 
+	cipher_free(cipher, ct1);
+	cipher_free(cipher, ct2);
+	cipher_free(cipher, ct3);
+	
+	delete ct1;
+	delete ct2;
+	delete ct3;
+	delete cipher;
+	
 	CUDAEngine::destroy();
 	cudaDeviceReset();
 	cudaCheckError();

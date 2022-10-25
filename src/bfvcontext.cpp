@@ -1,4 +1,20 @@
-#include <SPOG/fvcontext.h>
+// SPOG
+// Copyright (C) 2017-2021 SPOG Authors
+// 
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+// 
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+// 
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// 
+#include <SPOG-BFV/bfvcontext.h>
 
 // Allocates memory for a Keys object
 __host__ void keys_init(Context *ctx, Keys *k){
@@ -27,7 +43,11 @@ __host__ void keys_free(Context *ctx, Keys *k){
 	delete [] k->evk.b;
 }
 
-__host__ SecretKey* fv_new_sk(FVContext *ctx){
+__host__ void keys_sk_free(Context *ctx, SecretKey *sk){
+	poly_free(ctx, &sk->s);
+}
+
+__host__ SecretKey* bfv_new_sk(BFVContext *ctx){
     SecretKey *sk = new SecretKey;
     poly_init(ctx, &sk->s);
 
@@ -41,23 +61,22 @@ __host__ SecretKey* fv_new_sk(FVContext *ctx){
 };
 
 
-__host__ void FVContext::load_keys(const json & k){
-
-	poly_copy(this, &sk.s, poly_import(this, k["sk"]["s"].GetString()));
-	poly_copy(this, &pk.a, poly_import(this, k["pk"]["a"].GetString()));
-	poly_copy(this, &pk.b, poly_import(this, k["pk"]["b"].GetString()));
+__host__ void BFVContext::load_keys(const json & k){
+	poly_copy(this, &keys->sk.s, poly_import(this, k["sk"]["s"].GetString()));
+	poly_copy(this, &keys->pk.a, poly_import(this, k["pk"]["a"].GetString()));
+	poly_copy(this, &keys->pk.b, poly_import(this, k["pk"]["b"].GetString()));
 
 	for(unsigned int i = 0; i < CUDAEngine::RNSPrimes.size(); i++){
-		poly_copy(this, &evk.a[i], poly_import(this, k["evk"]["a"][i].GetString()));
-		poly_copy(this, &evk.b[i], poly_import(this, k["evk"]["b"][i].GetString()));
+		poly_copy(this, &keys->evk.a[i], poly_import(this, k["evk"]["a"][i].GetString()));
+		poly_copy(this, &keys->evk.b[i], poly_import(this, k["evk"]["b"][i].GetString()));
 	}
 }
 
-__host__ json FVContext::export_keys(){
+__host__ json BFVContext::export_keys(){
 
-	std::string sks = poly_export(this, &sk.s);
-	std::string pka = poly_export(this, &pk.a);
-	std::string pkb = poly_export(this, &pk.b);
+	std::string sks = poly_export(this, &keys->sk.s);
+	std::string pka = poly_export(this, &keys->pk.a);
+	std::string pkb = poly_export(this, &keys->pk.b);
 
 	json jkeys;
 	jkeys.SetObject();
@@ -71,8 +90,8 @@ __host__ json FVContext::export_keys(){
 	Value evka(kArrayType);
 	Value evkb(kArrayType);
 	for(unsigned int i = 0; i < CUDAEngine::RNSPrimes.size(); i++){
-		std::string a = poly_export(this, &evk.a[i]);
-		std::string b = poly_export(this, &evk.b[i]);
+		std::string a = poly_export(this, &keys->evk.a[i]);
+		std::string b = poly_export(this, &keys->evk.b[i]);
 
 		evka.PushBack(Value{}.SetString(a.c_str(), a.length(), jkeys.GetAllocator()), jkeys.GetAllocator());
 		evkb.PushBack(Value{}.SetString(b.c_str(), b.length(), jkeys.GetAllocator()), jkeys.GetAllocator());
@@ -83,14 +102,14 @@ __host__ json FVContext::export_keys(){
 	return jkeys;
 }
 
-__host__ void FVContext::clear_keys(){
-	poly_clear(this, &sk.s);
-	poly_clear(this, &pk.a);
-	poly_clear(this, &pk.b);
+__host__ void BFVContext::clear_keys(){
+	poly_clear(this, &keys->sk.s);
+	poly_clear(this, &keys->pk.a);
+	poly_clear(this, &keys->pk.b);
 
 	const int k = CUDAEngine::RNSPrimes.size();
 	for(int i = 0; i < k; i++){
-		poly_clear(this, &evk.a[i]);
-		poly_clear(this, &evk.b[i]);
+		poly_clear(this, &keys->evk.a[i]);
+		poly_clear(this, &keys->evk.b[i]);
 	}
 }

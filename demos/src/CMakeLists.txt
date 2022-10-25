@@ -1,6 +1,5 @@
 FIND_PACKAGE(cuPoly REQUIRED)
-# FIND_PACKAGE(spog REQUIRED)
-
+FIND_PACKAGE(spogbfv REQUIRED)
 
 # demo: simple_mul
 CUDA_ADD_EXECUTABLE(
@@ -16,27 +15,10 @@ TARGET_LINK_LIBRARIES(
     -lgmp 
     -fopenmp
     ${CUDA_curand_LIBRARY}
-    spog
+    spogbfv
 )
 
 # ADD_DEPENDENCIES(simple_mul simple_mul_target)
-
-# demo: toy_mul
-CUDA_ADD_EXECUTABLE(
-    toy_mul
-    EXCLUDE_FROM_ALL
-    ${CMAKE_CURRENT_SOURCE_DIR}/toy_mul.cpp
-)
-
-TARGET_LINK_LIBRARIES(
-    toy_mul
-    -lcupolybfv
-    -lntl 
-    -lgmp 
-    -fopenmp
-    ${CUDA_curand_LIBRARY}
-    spog
-)
 
 # demo: add_mul
 CUDA_ADD_EXECUTABLE(
@@ -52,7 +34,7 @@ TARGET_LINK_LIBRARIES(
     -lgmp 
     -fopenmp
     ${CUDA_curand_LIBRARY}
-    spog
+    spogbfv
 )
 
 # demo: sequencial_mul
@@ -69,7 +51,7 @@ TARGET_LINK_LIBRARIES(
     -lgmp 
     -fopenmp
     ${CUDA_curand_LIBRARY}
-    spog
+    spogbfv
 )
 
 # demo: add_mul
@@ -86,41 +68,24 @@ TARGET_LINK_LIBRARIES(
     -lgmp 
     -fopenmp
     ${CUDA_curand_LIBRARY}
-    spog
+    spogbfv
 )
 
 # demo: simple_add1
 CUDA_ADD_EXECUTABLE(
-    simple_add1
+    simple_add
     EXCLUDE_FROM_ALL
-    ${CMAKE_CURRENT_SOURCE_DIR}/simple_add1.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/simple_add.cpp
 )
 
 TARGET_LINK_LIBRARIES(
-    simple_add1
+    simple_add
     -lcupolybfv
     -lntl 
     -lgmp 
     -fopenmp
     ${CUDA_curand_LIBRARY}
-    spog
-)
-
-# demo: simple_add2
-CUDA_ADD_EXECUTABLE(
-    simple_add2
-    EXCLUDE_FROM_ALL
-    ${CMAKE_CURRENT_SOURCE_DIR}/simple_add2.cpp
-)
-
-TARGET_LINK_LIBRARIES(
-    simple_add2
-    -lcupolybfv
-    -lntl 
-    -lgmp 
-    -fopenmp
-    ${CUDA_curand_LIBRARY}
-    spog
+    spogbfv
 )
 
 # demo: simple_add2
@@ -137,13 +102,13 @@ TARGET_LINK_LIBRARIES(
     -lgmp 
     -fopenmp
     ${CUDA_curand_LIBRARY}
-    spog
+    spogbfv
 )
 
 # custom target
 ADD_CUSTOM_COMMAND(
     OUTPUT demos.out
-    DEPENDS simple_mul toy_mul add_mul sequential_mul encrypt_decrypt simple_add1 simple_add2 simple_mul_with_keys
+    DEPENDS simple_mul add_mul sequential_mul encrypt_decrypt simple_add
     COMMAND ${CMAKE_COMMAND} -E touch demos.out
     )
 ADD_CUSTOM_TARGET(
