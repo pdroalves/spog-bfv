@@ -1,0 +1,32 @@
+FIND_PACKAGE(GTest REQUIRED)
+FIND_PACKAGE(cuPoly REQUIRED)
+FIND_PACKAGE(spog REQUIRED)
+
+INCLUDE_DIRECTORIES(${GTEST_INCLUDE_DIRS})
+
+#
+# TEST
+#
+ENABLE_TESTING()
+
+ADD_EXECUTABLE(
+    spog_test
+    ${CMAKE_CURRENT_SOURCE_DIR}/test.cpp
+)
+
+SET_PROPERTY(TARGET spog_test PROPERTY CUDA_STANDARD 11)
+
+TARGET_LINK_LIBRARIES(
+    spog_test
+    ${GTEST_BOTH_LIBRARIES}
+    -lcupolybfv
+    -lntl 
+    -lgmp 
+    -fopenmp
+    ${CUDA_curand_LIBRARY}
+    spog
+)
+
+# ADD_TEST(SPOGTests spog_test)
+# GTEST_ADD_TESTS(
+# 	TARGET cupoly_test)

@@ -1,0 +1,15 @@
+# Try to find the SPOG library
+# SPOG_FOUND - system has SPOG lib
+# SPOG_INCLUDE_DIR - the SPOG include directory
+# SPOG_LIBRARIES - Libraries needed to use SPOG
+
+if (SPOG_INCLUDE_DIR AND SPOG_LIBRARIES)
+    # Already in cache, be silent
+    set(SPOG_FIND_QUIETLY TRUE)
+endif (SPOG_INCLUDE_DIR AND SPOG_LIBRARIES)
+
+FIND_LIBRARY(SPOG_LIBRARIES NAMES SPOG libspog )
+MESSAGE(STATUS "SPOG libs: " ${SPOG_LIBRARIES})
+
+include(FindPackageHandleStandardArgs)
+FIND_PACKAGE_HANDLE_STANDARD_ARGS(SPOG DEFAULT_MSG SPOG_INCLUDE_DIR SPOG_LIBRARIES)
